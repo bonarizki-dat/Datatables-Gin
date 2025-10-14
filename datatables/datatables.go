@@ -77,7 +77,19 @@ func ParseParams(c *gin.Context) dto.Params {
 	start, _ := strconv.Atoi(c.DefaultQuery("start", "0"))
 	length, _ := strconv.Atoi(c.DefaultQuery("length", "10"))
 	search := c.DefaultQuery("search[value]", "")
-	order := c.DefaultQuery("columns["+c.DefaultQuery("order[0][column]", "0")+"][data]", "")
+
+	// Try to get order column from different possible sources
+	orderColumn := c.DefaultQuery("order[0][column]", "")
+	order := ""
+
+	// First try: direct column name from order[0][column]
+	if orderColumn != "" {
+		order = orderColumn
+	} else {
+		// Fallback: try the old DataTables format
+		order = c.DefaultQuery("columns["+c.DefaultQuery("order[0][column]", "0")+"][data]", "")
+	}
+
 	dir := strings.ToLower(c.DefaultQuery("order[0][dir]", "asc"))
 
 	if dir != "asc" && dir != "desc" {
@@ -152,6 +164,9 @@ func OfReturn[T any](
 		if col, ok := orderable[params.Order]; ok {
 			filteredQuery = filteredQuery.Order(col + " " + params.Dir)
 		}
+	} else {
+		// Default ordering if no order specified
+		filteredQuery = filteredQuery.Order("created_at DESC")
 	}
 
 	// --- Pagination ---
